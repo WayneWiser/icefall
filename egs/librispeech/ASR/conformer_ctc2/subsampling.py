@@ -16,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import torch
 from scaling import (
     ActivationBalancer,
@@ -25,7 +24,7 @@ from scaling import (
     ScaledConv2d,
     ScaledLinear,
 )
-from torch import Tensor, nn
+from torch import nn
 
 
 class Conv2dSubsampling(nn.Module):
@@ -120,5 +119,3 @@ class Conv2dSubsampling(nn.Module):
         x = self.out_norm(x)
         x = self.out_balancer(x)
         return x
-
-

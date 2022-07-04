@@ -21,27 +21,25 @@
 # to a single one using model averaging.
 """
 Usage:
-./pruned_transducer_stateless2/export.py \
-  --exp-dir ./pruned_transducer_stateless2/exp \
-  --bpe-model data/lang_bpe_500/bpe.model \
+./conformer_ctc2/export.py \
+  --exp-dir ./conformer_ctc2/exp \
   --epoch 20 \
   --avg 10
 
 It will generate a file exp_dir/pretrained.pt
 
-To use the generated file with `pruned_transducer_stateless2/decode.py`,
+To use the generated file with `conformer_ctc2/decode.py`,
 you can do:
 
     cd /path/to/exp_dir
     ln -s pretrained.pt epoch-9999.pt
 
     cd /path/to/egs/librispeech/ASR
-    ./pruned_transducer_stateless2/decode.py \
-        --exp-dir ./pruned_transducer_stateless2/exp \
+    ./conformer_ctc2/decode.py \
+        --exp-dir ./conformer_ctc2/exp \
         --epoch 9999 \
         --avg 1 \
-        --max-duration 100 \
-        --bpe-model data/lang_bpe_500/bpe.model
+        --max-duration 100
 """
 
 import argparse
@@ -61,8 +59,6 @@ from conformer import Conformer
 
 from icefall.utils import str2bool
 from icefall.lexicon import Lexicon
-from icefall.env import get_env_info
-import cudeviceutil
 
 
 def get_parser():
@@ -121,7 +117,7 @@ def get_parser():
     parser.add_argument(
         "--exp-dir",
         type=str,
-        default="pruned_transducer_stateless2/exp",
+        default="conformer_ctc2/exp",
         help="""It specifies the directory where all training related
         files, e.g., checkpoints, log, etc, are saved
         """,
@@ -157,20 +153,11 @@ def main():
     max_token_id = max(lexicon.tokens)
     num_classes = max_token_id + 1  # +1 for the blank
 
-    use_cuda = torch.cuda.is_available()
-    if use_cuda:
-        devs = cudeviceutil.auto_alloc_device()
-        if len(devs) <= 0:
-            print("failed to auto allocate gpu device.")
-            return -1
-        devid = devs[0][0]
-        print("auto allocate gpu device: " + str(devid))
-        device = torch.device("cuda:"+str(devid))
-        torch.cuda.set_device(device)
-    else:
-        device = torch.device("cpu")
+    device = torch.device("cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda", 0)
 
-    logging.info(f"Device: {device}")
+    logging.info(f"device: {device}")
 
     logging.info(params)
 

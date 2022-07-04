@@ -17,7 +17,7 @@
 
 import copy
 import math
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -143,7 +143,10 @@ class Transformer(nn.Module):
             self.decoder_criterion = None
 
     def forward(
-        self, x: torch.Tensor, supervision: Optional[Supervisions] = None, warmup: float = 1.0
+        self,
+        x: torch.Tensor,
+        supervision: Optional[Supervisions] = None,
+        warmup: float = 1.0,
     ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor]]:
         """
         Args:
@@ -170,13 +173,17 @@ class Transformer(nn.Module):
         """
 
         encoder_memory, memory_key_padding_mask = self.run_encoder(
-            x, supervision, warmup)
+            x, supervision, warmup
+        )
 
         x = self.ctc_output(encoder_memory)
         return x, encoder_memory, memory_key_padding_mask
 
     def run_encoder(
-        self, x: torch.Tensor, supervisions: Optional[Supervisions] = None, warmup: float = 1.0
+        self,
+        x: torch.Tensor,
+        supervisions: Optional[Supervisions] = None,
+        warmup: float = 1.0,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """Run the transformer encoder.
 
@@ -203,7 +210,9 @@ class Transformer(nn.Module):
         x = x.permute(1, 0, 2)  # (N, T, C) -> (T, N, C)
         mask = encoder_padding_mask(x.size(0), supervisions)
         mask = mask.to(x.device) if mask is not None else None
-        x = self.encoder(x, src_key_padding_mask=mask, warmup=warmup)  # (T, N, C)
+        x = self.encoder(
+            x, src_key_padding_mask=mask, warmup=warmup
+        )  # (T, N, C)
 
         return x, mask
 
@@ -476,7 +485,6 @@ class TransformerEncoderLayer(nn.Module):
             )
         else:
             alpha = 1.0
-
 
         # src_att = self.self_attn(src, src, src, src_mask)
         src_att = self.self_attn(

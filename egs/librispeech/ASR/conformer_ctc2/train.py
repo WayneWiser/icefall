@@ -49,7 +49,6 @@ import argparse
 import copy
 import logging
 import warnings
-import os
 from pathlib import Path
 from shutil import copyfile
 from typing import Any, Dict, Optional, Tuple, Union
@@ -69,7 +68,6 @@ from torch import Tensor
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-from torch import distributed as dist
 
 from icefall.bpe_graph_compiler import BpeCtcTrainingGraphCompiler
 from icefall import diagnostics
@@ -83,13 +81,13 @@ from icefall.dist import cleanup_dist, setup_dist
 from icefall.env import get_env_info
 from icefall.graph_compiler import CtcTrainingGraphCompiler
 from icefall.lexicon import Lexicon
-from icefall.utils import AttributeDict, MetricsTracker, encode_supervisions, setup_logger, str2bool
-
-import subprocess, re
-import random
-import time
-
-import math
+from icefall.utils import (
+    AttributeDict,
+    MetricsTracker,
+    encode_supervisions,
+    setup_logger,
+    str2bool,
+)
 
 LRSchedulerType = Union[
     torch.optim.lr_scheduler._LRScheduler, optim.LRScheduler
@@ -521,7 +519,9 @@ def compute_loss(
     feature_lens = supervisions["num_frames"].to(device)
 
     with torch.set_grad_enabled(is_training):
-        nnet_output, encoder_memory, memory_mask = model(feature, supervisions, warmup=warmup)
+        nnet_output, encoder_memory, memory_mask = model(
+            feature, supervisions, warmup=warmup
+        )
         # logging.info('feature shape: {}'.format(feature.shape))
         # logging.info('nnet_output shape: {}'.format(nnet_output.shape))
         # logging.info('encoder_memory shape: {}'.format(encoder_memory.shape))
@@ -589,8 +589,6 @@ def compute_loss(
     else:
         loss = ctc_loss
         att_loss = torch.tensor([0])
-
-
 
     assert loss.requires_grad == is_training
 
@@ -727,11 +725,11 @@ def train_one_epoch(
             scaler.scale(loss).backward()
         except RuntimeError as e:
             if "CUDA out of memory" in str(e):
-              logging.error(f"failing batch size:{batch_size} "
-                  f"failing batch names {batch_name}")
+                logging.error(
+                    f"failing batch size:{batch_size} "
+                    f"failing batch names {batch_name}"
+                )
             raise
-
-
 
         scheduler.step_batch(params.batch_idx_train)
         scaler.step(optimizer)
@@ -784,10 +782,13 @@ def train_one_epoch(
                 f"tot_loss[{tot_loss}], batch size: {batch_size}, "
                 f"lr: {cur_lr:.2e}"
             )
-            if loss_info["ctc_loss"] == float("inf") or loss_info["att_loss"] == float("inf"):
+            if loss_info["ctc_loss"] == float("inf") or loss_info[
+                "att_loss"
+            ] == float("inf"):
                 logging.error(
                     "Your loss contains inf, something goes wrong"
-                  f"failing batch names {batch_name}")
+                    f"failing batch names {batch_name}"
+                )
             if tb_writer is not None:
                 tb_writer.add_scalar(
                     "train/learning_rate", cur_lr, params.batch_idx_train
@@ -924,7 +925,7 @@ def run(rank, world_size, args):
     model.to(device)
     if world_size > 1:
         logging.info("Using DDP")
-        model = DDP(model, device_ids=[local_rank])
+        model = DDP(model, device_ids=[rank])
 
     optimizer = Eve(model.parameters(), lr=params.initial_lr)
 
@@ -962,13 +963,18 @@ def run(rank, world_size, args):
         # an utterance duration distribution for your dataset to select
         # the threshold
         return 1.0 <= c.duration <= 20.0
+
     def remove_invalid_utt_ctc(c: Cut):
         # Caution: We assume the subsampling factor is 4!
         # num_tokens = len(sp.encode(c.supervisions[0].text, out_type=int))
         num_tokens = len(graph_compiler.texts_to_ids(c.supervisions[0].text))
         min_output_input_ratio = 0.0005
         max_output_input_ratio = 0.1
-        return min_output_input_ratio < num_tokens / float(c.features.num_frames) < max_output_input_ratio
+        return (
+            min_output_input_ratio
+            < num_tokens / float(c.features.num_frames)
+            < max_output_input_ratio
+        )
 
     train_cuts = train_cuts.filter(remove_short_and_long_utt)
     train_cuts = train_cuts.filter(remove_invalid_utt_ctc)

@@ -27,13 +27,11 @@ from scaling import (
     BasicNorm,
     DoubleSwish,
     ScaledConv1d,
-    ScaledConv2d,
     ScaledLinear,
 )
 from torch import Tensor, nn
 from subsampling import Conv2dSubsampling
 
-from icefall.utils import make_pad_mask
 from transformer import Supervisions, Transformer, encoder_padding_mask
 
 
@@ -106,7 +104,10 @@ class Conformer(Transformer):
         self.encoder = ConformerEncoder(encoder_layer, num_encoder_layers)
 
     def run_encoder(
-        self, x: torch.Tensor, supervisions: Optional[Supervisions] = None, warmup: float = 1.0
+        self,
+        x: torch.Tensor,
+        supervisions: Optional[Supervisions] = None,
+        warmup: float = 1.0,
     ) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
         """
         Args:
